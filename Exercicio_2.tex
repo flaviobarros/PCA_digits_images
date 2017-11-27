@@ -1,0 +1,40 @@
+\documentclass{article}
+
+\usepackage[brazilian]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fancyhdr}
+
+\title{Exercício 2}
+\author{Flávio Barros - RA016120}
+
+\usepackage{Sweave}
+\begin{document}
+\input{Exercicio_2-concordance}
+\maketitle
+\pagestyle{fancy}
+\fancyhead{Exercício 2}
+\cfoot{\thepage}
+\chead{Flávio Barros}
+\rhead{RA:016120}
+
+\section{Leitura dos Dados}
+
+Os dados do problema são imagens do tipo PGM com $64$ x $64$ pixels por imagem, onde cada pixel tem valor 1 ou 0. Cada imagem tem um nome no formato X\_ yyy.BMP.inv.pgm, onde o X é o dígito desenhado na imagem.
+
+Assim a primeira parte do Exercício 2 é efetuar a leitura dos dados. Para isso me utilizarei do pacote \texttt{pixmap} com o qual é possível ler e manipular imagens PGM.
+
+\begin{Schunk}
+\begin{Sinput}
+> library(pixmap)
+\end{Sinput}
+\end{Schunk}
+
+Após isso será feita a leitura dos arquivos no conjunto de treino e do conjunto de teste. Esta consiste na criação de dois \texttt{data.frames} chamados treino e teste, e também da criação de um vetor do tipo \texttt{factor} para armazenar as classes, obtidas dos nomes dos arquivos de cada imagem.
+
+Inicialmente é definido o local onde estão os arquivos.
+
+\begin{Schunk}
+\begin{Sinput}
+> path_treino <- '/home/ra016120/Dropbox/MO444/Exercicio2/treino/'
+> setwd(path_treino)

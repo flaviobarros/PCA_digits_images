@@ -1,0 +1,176 @@
+\documentclass{article}
+
+\usepackage[brazilian]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fancyhdr}
+
+\title{Exercício 2}
+\author{Flávio Barros - RA016120}
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+\maketitle
+\pagestyle{fancy}
+\fancyhead{Exercício 2}
+\cfoot{\thepage}
+\chead{Flávio Barros}
+\rhead{RA:016120}
+
+\section{Leitura dos Dados}
+
+Os dados do problema são imagens do tipo PGM com $64$ x $64$ pixels por imagem, onde cada pixel tem valor 1 ou 0. Cada imagem tem um nome no formato X\_ yyy.BMP.inv.pgm, onde o X é o dígito desenhado na imagem.
+
+Assim a primeira parte do Exercício 2 é efetuar a leitura dos dados. Para isso me utilizarei do pacote \texttt{pixmap} com o qual é possível ler e manipular imagens PGM.
+
+<<>>=
+library(pixmap)
+@
+
+Após isso será feita a leitura dos arquivos no conjunto de treino e do conjunto de teste. Esta consiste na criação de dois \texttt{data.frames} chamados treino e teste, e também da criação de um vetor do tipo \texttt{factor} para armazenar as classes, obtidas dos nomes dos arquivos de cada imagem.
+
+Inicialmente é definido o local onde estão os arquivos.
+
+<<eval=T>>=
+path_treino <- '/home/ra016120/Dropbox/MO444/Exercicio2/treino/'
+setwd(path_treino)
+@
+
+Em seguinda os nomes dos arquivos são armazenados na variável \texttt{files} e as classes são extraídas dos nomes dos arquivos.
+<<eval=TRUE>>=
+files <- dir()
+classes <- as.factor(substring(files,first=1,last=1))
+@
+
+Por fim é realizada a leitura dos arquivos para o \texttt{data.frame} treino. É importante observar que a matriz 64 x 64, dos dados da imagem, foi armazenada em \texttt{x@grey} e depois transformada em vetor, tal que na matriz final cada linha é a representação de uma das imagens. Como são 1949 imagens, a matriz tem 1949 linhas.
+
+<<eval=F>>=
+treino <- as.data.frame(matrix(rep(0,length(files)*64*64), nrow=length(files)))
+for (i in 1:length(files)) {
+  x <- read.pnm(files[i])
+  treino[i,] <- as.vector(x@grey, mode='integer')
+}
+@
+
+O mesmo procedimento foi realizado para os dados de teste. Somente vale ressaltar que as classes foram armazenadas na variável \texttt{predic}.
+
+<<eval=F>>=
+path_teste <- '/home/ra016120/Dropbox/MO444/Exercicio2/teste/'
+setwd(path_teste)
+files <- dir()
+predic <- as.factor(substring(files,first=1,last=1))
+teste <- as.data.frame(matrix(rep(0,length(files)*64*64), nrow=length(files)))
+for (i in 1:length(files)) {
+  x <- read.pnm(files[i], )
+  teste[i,] <- as.vector(x@grey, mode='integer')
+}
+@
+
+\section{Aprendizado com k-nn}
+
+Nesta etapa será realizado o aprendizado com o algoritmo k-nn sem nenhum tratamento dos dados.
+
+<<eval=F>>=
+predito <- knn(train=treino, test=teste, cl=classes, k=1, prob=T)
+result <- data.frame(cbind(predic, predito, acerto = predic==predito))
+sum(result$acerto)/nrow(result)
+@
+
+Como pode-se verificar, a taxa de acerto com \texttt{k = 1} foi de 78\%. Para comparação foi realizado o procedimento do k-nn para todos os números ímpares de 1 a 81 e como pode-ser ver na Figura (\ref{fig1}), o melhor \texttt{k} foi \texttt{k=1}. Vale ressaltar também, que dos valores de k entre ${1,3,5,11,17,21}$ a menor taxa de acerto está destacada no gráfico e foi de 28\%.
+
+Assim, pelo menos nos dados brutos sem nenhum tipo de tratamento a melhor opção é utilizar o \texttt{k = 1}.
+
+
+
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=1.0\textwidth]{valores_k.pdf}
+\caption{Variação da taxa de acerto com a variação dos k's}
+\label{fig1}
+\end{figure*}
+
+\section{Aplicação do PCA}
+
+Para o procedimento de aplicação do PCA utilizei a função \texttt{prcomp} que utiliza um procedimento de cálculo das componentes principais baseado na decomposição SVD.
+
+Como temos que inferir as componentes principais do PCA a partir do conjunto de treino, mas temos que utilizar essas mesmas componentes principais no conjunto de teste, temos que fazer a rotação do conjunto de dados no novo sistema de coordenas, utilizando os resultados da saída de \texttt{prcomp}. 
+
+\subsection{Explicação da Rotação}
+
+Para ilustrar o procedimento de rotação do conjunto de teste, vamos visualizar o efeito das componente principais em um conjunto de testes menor. O conjunto escolhido foi retirado do livro "A User's Guide to  Principal Components", específicamente da página 5. Foram feitas 15 observações, com dois métodos diferentes
+
+
+<<>>=
+chemic <- data.frame(m1 =c(10.0, 10.4, 9.7, 9.7, 11.7, 11.0, 8.7, 9.5, 10.1, 9.6, 10.5, 9.2, 11.3, 10.1, 8.5), m2 = c(10.7, 9.8, 10.0, 10.1, 11.5, 10.8, 8.8, 9.3, 9.4, 9.6, 10.4, 9.0, 11.6, 9.8, 9.2))
+chemic
+@
+
+Agora vamos calcular as componentes principais e armazenar a matriz de rotação:
+
+<<>>=
+pc <- prcomp(chemic)
+rotacao <- pc$rotation
+rotacao
+@
+
+Vamos visualizar os dados rotacionados:
+
+<<>>=
+pc$x
+@
+
+Cada componente $z_i$, que em PCA são os scores, ou as observações no sistema rotacionado, podem ser calculadas diretamente utilizando a matriz de rotação, o vetor das médias e as observações. Assim para uma dada linha da tabela, seu score seria calculado por ':
+
+\begin{equation}
+z_i = \textbf{u}^T_i[\textbf{x} - \textbf{\={x}}]
+\end{equation}
+
+Assim, para a primeira observação:
+
+<<>>=
+L <- as.matrix(pc$center)
+rotacionado <- matrix(rep(0,2*15), nrow=15)
+for (i in 1:nrow(rotacionado)) {
+  rotacionado[i,] <- t(rotacao %*% (t(chemic[i,]) - L))
+}  
+as.matrix(rotacionado)
+pc$x
+@
+
+Como pode-se ver é o mesmo resultado utilizando o sistema rotacionado pelo \texttt{prcomp}
+
+\subsection{Rotação nas Imagens}
+
+Seguindo o procedimento descrito anteriormente, ou utilizando o método \texttt{predict} do objeto \texttt{prcomp} é possível rotacionar o conjunto de dados. Tanto usando o loop, ou utilizando o método \texttt{predict}.
+
+<<eval=FALSE>>=
+pc <- prcomp(treino)
+treino_x <- pc$x
+test.p <- predict(pc, newdata = teste)
+predito <- knn(train=pc$x[,1:400], test=test.p[,1:400], cl=classes, k=1, prob=T)
+result <- data.frame(cbind(predic, predito, acerto = predic==predito))
+sum(result$acerto)/nrow(result)
+@
+
+Lembrando que as observações rotacionadas podem ser calculadas linha a linha com o procedimento descrito anteriormente.
+Com as 400 componentes principais a taxa de acerto, com \texttt{k=1}, foi de 82\%, mostrando uma melhora. De forma a explorar a variação de componentes, foi construído o gráfico da Figura (\ref{fig2}). A melhor taxa de acerto foi alcançada com 70 dimensões.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.7\textwidth]{valores_dim.pdf}
+\caption{Variação da taxa de acerto com o número de dimensões.}
+\label{fig2}
+\end{figure*}
+
+Fazendo a variação dos k's com 70 dimensões para vários valores de k, vemos que, apesar da melhora nas taxas para k = \{1,3,5,11,17,21\} que passaram de \{0.78, 0.50, 0.53, 0.34, 0.34, 0.30\} para \{0.84, 0.58, 0.52, 0.50, 0.62, 0.58\} o \texttt{k=1} ainda é a melhor opção. 
+
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.7\textwidth]{valores_k_70.pdf}
+\caption{Variação da taxa de acerto com o número de dimensões.}
+\label{fig3}
+\end{figure*}
+
+\end{document}
